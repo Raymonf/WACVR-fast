@@ -23,6 +23,7 @@ public class ColliderToSerial : MonoBehaviour
         Serial.SetTouch(Area, true);
         touchDidChange?.Invoke();
         lightManager.UpdateLightFade(Area, true);
+        ReliableOnTriggerExit.NotifyTriggerEnter(other, gameObject, OnTriggerExit);
     }
 
     private void OnTriggerExit(Collider other)
@@ -35,5 +36,6 @@ public class ColliderToSerial : MonoBehaviour
             touchDidChange?.Invoke();
             lightManager.UpdateLightFade(Area, false);
         }
+        ReliableOnTriggerExit.NotifyTriggerExit(other, gameObject);
     }
 }

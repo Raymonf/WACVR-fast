@@ -17,7 +17,8 @@ public class Serial : MonoBehaviour
     const byte CMD_BEGIN_WRITE = 0x77;
     const byte CMD_NEXT_WRITE = 0x20;
 
-    private Thread _touchThread;
+    // private Thread _touchThread;
+    private AccurateTimer _touchTimer;
     private Queue _touchQueue;
 
     static SerialPort ComL = new SerialPort ("COM5", 115200);
@@ -52,7 +53,7 @@ public class Serial : MonoBehaviour
         //Debug.Log("Touch Serial Initializing..");
         //Send touch update periodically to keep "read" alive
         _touchQueue = Queue.Synchronized(new Queue());
-        _touchThread = new Thread(TouchThreadLoop);
+        // _touchThread = new Thread(TouchThreadLoop);
         InvokeRepeating("PingTouchThread", 0, 1);
         //Send touch updates whenever actual state changes to achieve desired update frequency without overloading
         ColliderToSerial.touchDidChange += PingTouchThread;
@@ -65,7 +66,7 @@ public class Serial : MonoBehaviour
 
     private void TouchThreadLoop()
     {
-        while(true)
+        // while(true)
         {
             if(_touchQueue.Count > 0)
             {
@@ -78,6 +79,7 @@ public class Serial : MonoBehaviour
     {
         ComL.Close();
         ComR.Close();
+        _touchTimer.Stop();
     }
     void Update()
     {
@@ -197,8 +199,14 @@ public class Serial : MonoBehaviour
                 Serial.Write(SettingData_201.ToArray(), 0, 3);
                 //Debug.Log($"START AUTO SCAN SIDE {side}");
                 StartUp = true;
-                if (!_touchThread.IsAlive)
-                    _touchThread.Start();
+                if (_touchTimer == null)
+                {
+                    // TODO: benchmark
+                    // is this actually faster/more efficient compared to a never-yielding thread?
+                    _touchTimer = new AccurateTimer(new Action(TouchThreadLoop), 5);
+                }
+                /*if (!_touchThread.IsAlive)
+                    _touchThread.Start();*/
                 break;
             case CMD_BEGIN_WRITE:
           //      Debug.Log($"Begin Write For Side {side}");

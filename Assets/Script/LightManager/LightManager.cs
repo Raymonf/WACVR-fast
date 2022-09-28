@@ -1,6 +1,8 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO.MemoryMappedFiles;
+using System.Runtime.InteropServices;
 using System.Security.Principal;
 using UnityEngine;
 
@@ -15,6 +17,7 @@ public class LightManager : MonoBehaviour
     public static MemoryMappedFile sharedBuffer;
     public static MemoryMappedViewAccessor sharedBufferAccessor;
 
+    private byte[] buffer = new byte[1920];
     private IEnumerator[] coroutines = new IEnumerator[240];
     public float FadeDuration = 0.5f;
 
@@ -38,7 +41,8 @@ public class LightManager : MonoBehaviour
     }
     private void Update() 
     {
-        GetTextureFromBytes(GetBytesFromMemory());
+        GetBytesFromMemory();
+        GetTextureFromBytes();
         if (useIPC_Config)
             CheckIPCState();
         if (useIPC)
@@ -62,30 +66,49 @@ public class LightManager : MonoBehaviour
     }
     private void UpdateLED()
     {
+        var colors = RGBColor2D.GetPixels32();
+
         int index = 0;
         for (int i = 0; i < 30; i++)
         {
             for (int ii = 0; ii < 4; ii++)
             {
-                Materials[119 - i - ii * 30].SetColor("_EmissionColor", RGBColor2D.GetPixel(index * 2, 0));
+                /*Materials[119 - i - ii * 30].SetColor("_EmissionColor", RGBColor2D.GetPixel(index * 2, 0));
                 Materials[119 - i - ii * 30].SetColor("_EmissionColor2", RGBColor2D.GetPixel(index * 2 + 1, 0));
                 Materials[210 + i - ii * 30].SetColor("_EmissionColor", RGBColor2D.GetPixel((index + 120) * 2, 0));
-                Materials[210 + i - ii * 30].SetColor("_EmissionColor2", RGBColor2D.GetPixel((index + 120) * 2 + 1, 0));
+                Materials[210 + i - ii * 30].SetColor("_EmissionColor2", RGBColor2D.GetPixel((index + 120) * 2 + 1, 0));*/
+                Materials[119 - i - ii * 30].SetColor("_EmissionColor", colors[index * 2]);
+                Materials[119 - i - ii * 30].SetColor("_EmissionColor2", colors[index * 2 + 1]);
+                Materials[210 + i - ii * 30].SetColor("_EmissionColor", colors[(index + 120) * 2]);
+                Materials[210 + i - ii * 30].SetColor("_EmissionColor2", colors[(index + 120) * 2 + 1]);
                 index++;
             }
         }
     }
-    void GetTextureFromBytes(byte[] bytes)
+    void GetTextureFromBytes()
     {
-        RGBColor2D.LoadRawTextureData(bytes);
+        RGBColor2D.LoadRawTextureData(buffer);
         RGBColor2D.Apply();
     }
-    byte[] GetBytesFromMemory()
+
+    unsafe void GetBytesFromMemory()
     {
-        byte[] bytes = new byte[1920];
-        sharedBufferAccessor.ReadArray<byte>(244, bytes, 0, 1920);
-        return bytes;
+        // sharedBufferAccessor.ReadArray<byte>(244, buffer, 0, 1920);
+        // https://stackoverflow.com/a/7956222
+        const int offset = 244;
+        const int num = 1920;
+        try
+        {
+            byte* ptr = (byte*)0;
+            sharedBufferAccessor.SafeMemoryMappedViewHandle.AcquirePointer(ref ptr);
+            Marshal.Copy(IntPtr.Add(new IntPtr(ptr), offset), buffer, 0, num);
+        }
+        finally
+        {
+            sharedBufferAccessor.SafeMemoryMappedViewHandle.ReleasePointer();
+        }
     }
+
     public void UpdateLightFade(int Area, bool State)
     {
         if(useIPC)

@@ -9,7 +9,9 @@ public class CameraSmooth : MonoBehaviour {
 	private void Start()
 	{
 		QualitySettings.vSyncCount = 0;
-		Application.targetFrameRate = FPS;
+
+		// destroys frame timing on quest 2
+		// Application.targetFrameRate = FPS;
 	}
 	void Update ()
 	{
